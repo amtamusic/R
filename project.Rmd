@@ -1,0 +1,90 @@
+
+---
+title: "Prediction Project"
+author: "Andres Toledo"
+date: "June 19, 2015"
+output: html_document
+---
+Load the caret package
+---
+1.) read csv files and save the in separate variable setting NA values to missing fields
+```{r}
+library(caret)
+```
+Training : 
+```{r}
+training = read.csv("pml-training.csv", header=T, na.strings=c("NA", "#DIV/0!"))
+dim(training)
+```
+Testing : 
+```{r}
+testing = read.csv("pml-testing.csv", header=T, na.string=c("NA", "#DIV/0!"))
+dim(testing)
+```
+
+2.) Remove fields with NA values to avoid outliers
+
+```{r}
+naTrain<-training[, apply(training, 2, function(x) !any(is.na(x)))] 
+cleanTrain<-naTrain[,-c(1:8)]
+cleanTest<-testing[,names(cleanTrain[,-52])]
+dim(cleanTrain)
+dim(cleanTest)
+```
+
+3.)partitions data into a 60% training set and a 40%testing set
+
+New Training : 
+
+```{r}
+trainingData<-createDataPartition(y=cleanTrain$classe, p=0.60,list=F)
+newTraining<-cleanTrain[trainingData,] 
+dim(newTraining)
+```
+New Testing :
+
+```{r}
+newTest<-cleanTrain[-trainingData,]
+dim(newTest)
+```
+
+4.)Cross Validation and Random Forests
+
+Set the seed
+
+```{r}
+set.seed(10119)
+```
+
+Implement crossvalidation
+```{r}
+fit<-trainControl(method="cv", number=2, allowParallel=T, verbose=T)
+```
+
+Generates random forest using crossvalidation
+
+```{r}
+randforest<-train(classe~.,data=newTraining, method="rf", trControl=fit, verbose=F)
+```
+
+5.)Prediction
+
+Predicts values on the cleaned test set
+
+```{r}
+predrandforest<-predict(randforest, newdata=newTest)
+```
+
+Show the confusion matrix to identify the accuracy,sensitivity and specificity of the predictor.
+The matrix does not show great variation altering the crossvalidation parameters which is why a low number was chosen to increase computation speed.
+
+```{r}
+confusionMatrix(predrandforest, newTest$classe)
+```
+
+Predicts values on original test data
+
+```{r}
+pred<-predict(randforest, newdata=cleanTest)
+pred
+```
